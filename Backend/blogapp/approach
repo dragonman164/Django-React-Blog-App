@@ -1,0 +1,34 @@
+Blog Website: 
+
+1. User
+-> Name 
+-> Email ID 
+-> Phone No. 
+-> Address
+-> Profession 
+-> Rating (Average rating of all the blogs uploaded so far) 
+-> Date of Birth 
+-> Gender 
+-> Profile Picture (Will be added later)
+
+ 
+2. Blog
+-> id (PK)  
+-> Owner 
+-> Timestamp 
+-> Content of the blog (Currently assume it as text, 
+later we will ellaborate to images) 
+-> No. of Likes in the blog 
+-> No. of Dislikes in the post 
+
+3. Comments 
+-> Blog ID (FK) of Blog
+-> User who is making comment 
+-> Timestamp
+-> Text
+
+4. Likes/Dislike
+-> Blog ID 
+-> User Id 
+-> Liked or disliked the post? 
+

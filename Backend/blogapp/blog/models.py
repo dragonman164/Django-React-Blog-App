@@ -30,6 +30,7 @@ class BlogUser(models.Model):
 # In Future, Add Images Upload Section
 class Blog(models.Model):
     user = models.ForeignKey(BlogUser, on_delete=models.CASCADE, blank = False, null = False)
+    topic = models.CharField(null = False, blank = False, max_length = 50,default = "asas")
     timeofcreation = models.DateTimeField(auto_now_add=True)
     content = models.TextField(null = True, blank = True, max_length=5000)
     likes = models.IntegerField(default=0, null = False, blank = False)

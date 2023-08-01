@@ -31,10 +31,10 @@ class BlogSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class LikeDislikeSerializer(serializers.ModelSerializer):
-   
+    blog = BlogSerializer(read_only = True)
     class Meta: 
         model = LikeDisklike
-        fields = ['like','dislike','blog']
+        fields = '__all__'
         extra_kwargs = {'like': {'required': True},'dislike' : {'required' : True}} 
 
     def validate(self, data):
@@ -44,7 +44,12 @@ class LikeDislikeSerializer(serializers.ModelSerializer):
     
 class CommentSerializer(serializers.ModelSerializer):
     user = BlogUserSerializer(read_only = True)
+    blog = BlogSerializer(read_only = True)
     class Meta: 
         model = Comment
         fields = '__all__'
     
+class BlogUserCustomSerializer(serializers.ModelSerializer):
+    class Meta: 
+        model = BlogUser
+        fields = ['name','id']

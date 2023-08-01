@@ -12,8 +12,8 @@ from rest_framework.decorators import api_view
 from rest_framework import filters
 
 
-from .serializers import BlogUserSerializer,UserSerializer,BlogSerializer,LikeDislikeSerializer
-from .models import BlogUser,Blog,LikeDisklike
+from .serializers import BlogUserSerializer,UserSerializer,BlogSerializer,LikeDislikeSerializer,CommentSerializer,BlogUserCustomSerializer
+from .models import BlogUser,Blog,LikeDisklike,Comment
 
 # Create your views here.
 def index(request):
@@ -163,7 +163,7 @@ class LikeDislikeView(APIView):
         request.data.update({"user" : BlogUser.objects.get(member = self.request.user).id})
         like_dislike_serializer = LikeDislikeSerializer(data = request.data)
         if like_dislike_serializer.is_valid():
-            like_dislike_serializer.save()
+            like_dislike_serializer.save(blog = blog[0])
             return Response(like_dislike_serializer.data, status = status.HTTP_201_CREATED)
         return Response(like_dislike_serializer.errors, status = status.HTTP_400_BAD_REQUEST)
     
@@ -182,6 +182,7 @@ class LikeDislikeView(APIView):
             return Response({
                 "message" : "Like Disklike Data not found for given user and blog"
             },status = status.HTTP_404_NOT_FOUND)
+        request.data.update({"user" : BlogUser.objects.get(member = self.request.user).id})
         like_dislike_serializer = LikeDislikeSerializer(like_dislike_object[0],data = request.data)
         if like_dislike_serializer.is_valid():
             like_dislike_serializer.save()
@@ -200,7 +201,7 @@ class LikeDislikeView(APIView):
             return Response({
                 "message" : "Blog ID not found!!"
             },status = status.HTTP_404_NOT_FOUND)     
-        like_dislike_object = LikeDisklike.objects.filter(blog = blog, user__member = self.request.user)
+        like_dislike_object = LikeDisklike.objects.filter(blog = blog[0], user__member = self.request.user)
         if len(like_dislike_object) == 0: 
             return Response({
                 "message" : "Like Disklike Data not found for given user and blog"
@@ -210,29 +211,84 @@ class LikeDislikeView(APIView):
             "message" : "Like / Dislike Successfully Removed"
         },status = status.HTTP_204_NO_CONTENT)
     
-
+# CRUD operations on COMMENTS for a particular user
 class CommentView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication]
 
     def get(self, request):
-        pass 
-
+        user = self.request.user 
+        comments = Comment.objects.filter(user__member = user)
+        comments_serializer = CommentSerializer(comments,many = True)
+        return Response(comments_serializer.data, status = status.HTTP_200_OK)
+    
     def put(self, request):
-        pass 
+        user = self.request.user 
+        if request.data.get('blog') is None: 
+            return Response({
+                "message" : "Blog ID was not specified"
+            },status = status.HTTP_400_BAD_REQUEST)
+        blog = Blog.objects.filter(id = request.data.get('blog'))
+        if len(blog) == 0: 
+            return Response({
+                "message" : "Blog ID not found"
+            },status = status.HTTP_404_NOT_FOUND)
+        comments = Comment.objects.filter(blog = blog[0],user__member = user)
+        if len(comments) == 0: 
+            return Response({
+                "message" : "Comment not found for given user and blog ID"
+            },status = status.HTTP_404_NOT_FOUND)
+        comment_serializer = CommentSerializer(comments[0],data = request.data)
+        if comment_serializer.is_valid():
+            comment_serializer.save()
+            return Response(comment_serializer.data, status = status.HTTP_201_CREATED)
+        return Response(comment_serializer.errors, status = status.HTTP_400_BAD_REQUEST)
     
     def post(self, request):
-        pass 
+        if request.data.get('blog') is None: 
+            return Response({
+                "message" : "Blog ID was not specified"
+            },status = status.HTTP_400_BAD_REQUEST)
+        blog = Blog.objects.filter(id = request.data.get('blog'))
+        if len(blog) == 0: 
+            return Response({
+                "message" : "Blog ID not found"
+            },status = status.HTTP_404_NOT_FOUND)
+        comment_serializer = CommentSerializer(data = request.data)
+        if comment_serializer.is_valid():
+            comment_serializer.save(user = BlogUser.objects.get(member = self.request.user),blog = blog[0])
+            return Response(comment_serializer.data, status = status.HTTP_201_CREATED)
+        return Response(comment_serializer.errors, status = status.HTTP_400_BAD_REQUEST)
     
     def delete(self, request):
-        pass 
+        user = self.request.user 
+        if request.data.get('blog') is None: 
+            return Response({
+                "message" : "Blog ID was not specified"
+            },status = status.HTTP_400_BAD_REQUEST)
+        blog = Blog.objects.filter(id = request.data.get('blog'))
+        if len(blog) == 0: 
+            return Response({
+                "message" : "Blog ID not found"
+            },status = status.HTTP_404_NOT_FOUND)
+        comments = Comment.objects.filter(blog = blog[0],user__member = user)
+        if len(comments) == 0: 
+            return Response({
+                "message" : "Comment not found for given user and blog ID"
+            },status = status.HTTP_404_NOT_FOUND)
+        comments[0].delete()
+        return Response({
+            "message" : "Comment successfully Deleted"
+        },status = status.HTTP_204_NO_CONTENT)
+
+        
 
 # User List View with all relevant filters (to be fixed, showing all user details)
 class BlogUserListView(ListAPIView):
     queryset = BlogUser.objects.all()
-    serializer_class = BlogUserSerializer
-    filter_backends = [filters.SearchFilter]
-    search_fields = ['name']
+    serializer_class = BlogUserCustomSerializer
+    # filter_backends = [filters.SearchFilter]
+    # search_fields = ['name']
 
 # Blog List View with all relevant filters
 class BlogListView(ListAPIView):
@@ -241,6 +297,24 @@ class BlogListView(ListAPIView):
     filter_backends = [filters.SearchFilter]
     search_fields = ['topic','user__name']
 
+# View all comments of a blog
+@api_view(['GET'])
+def blog_comments(request):
+    if request.GET.get('blog') is None: 
+        return Response({
+            "message" : "Blog ID not specified"
+        },status = status.HTTP_400_BAD_REQUEST)
+    blog = Blog.objects.filter(id = request.GET.get('blog'))
+    if len(blog) == 0: 
+        return Response({
+            "message" : "Blog ID not found in database !!"
+        },status = status.HTTP_404_NOT_FOUND)
+    comments = Comment.objects.filter(blog = blog[0])
+    comments_serializer = CommentSerializer(comments, many = True)
+    return Response(comments_serializer.data,status = status.HTTP_200_OK)
+
+
 ## Todo 
 # 1. Blog User List view should only show names and nothing else
-
+# 2. Reply to blog comments ??
+# 3. Like dislike for comments ??

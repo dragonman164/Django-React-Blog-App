@@ -14,7 +14,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.urls import path
-from .views import index,BlogUserRegistrationView,BlogUserView,BlogListView,BlogUserListView,BlogView,LikeDislikeView,CommentView
+from .views import index,BlogUserRegistrationView,BlogUserView,BlogListView,BlogUserListView,BlogView,LikeDislikeView,CommentView,blog_comments
 from rest_framework.authtoken.views import obtain_auth_token
 
 urlpatterns = [
@@ -29,5 +29,6 @@ urlpatterns = [
 
     path('blog/',BlogView.as_view(),name = "blogview"),
     path('lidike/',LikeDislikeView.as_view(),name = "likedislikeview"),
-    path('comment/',CommentView.as_view(),name="commentview")
+    path('comment/',CommentView.as_view(),name="commentview"),
+    path('blogcomment/',blog_comments,name = "blog_comments")
 ]

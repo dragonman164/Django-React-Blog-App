@@ -12,14 +12,14 @@ from rest_framework.decorators import api_view
 from rest_framework import filters
 
 
-from .serializers import BlogUserSerializer,UserSerializer,BlogSerializer
-from .models import BlogUser,Blog
+from .serializers import BlogUserSerializer,UserSerializer,BlogSerializer,LikeDislikeSerializer
+from .models import BlogUser,Blog,LikeDisklike
 
 # Create your views here.
 def index(request):
     return HttpResponse("<h1>Backend for Blog is running!!</h1>")
 
-
+# Register a new user into the system
 class BlogUserRegistrationView(APIView):
     def post(self, request):
         user_serializer = UserSerializer(data = request.data)
@@ -40,9 +40,10 @@ class BlogUserRegistrationView(APIView):
                 return Response(bloguser_serializer.errors, status = status.HTTP_400_BAD_REQUEST)
         
         return Response(user_serializer.errors, status = status.HTTP_400_BAD_REQUEST)
+    
+        
 
-
-# View details of the self
+# View details of the self user with CRUD operations (C) in register
 class BlogUserView(APIView):
     permission_classes=[IsAuthenticated]
     authentication_classes=[TokenAuthentication]
@@ -52,6 +53,22 @@ class BlogUserView(APIView):
         bloguser = BlogUser.objects.get(member = user)
         bloguser_serializer = BlogUserSerializer(bloguser)
         return Response(bloguser_serializer.data, status = status.HTTP_200_OK)
+    
+    def put(self, request):
+        user = self.request.user 
+        bloguser = BlogUser.objects.get(member = user)
+        bloguser_serializer = BlogUserSerializer(bloguser, data = request.data)
+        if bloguser_serializer.is_valid():
+            bloguser_serializer.save()
+            return Response(bloguser_serializer.data, status = status.HTTP_202_ACCEPTED)
+        return Response(bloguser_serializer.errors,status = status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request):
+        user = self.request.user
+        user.delete()
+        return Response({
+            "message" : "User successfully deleted"
+        },status = status.HTTP_204_NO_CONTENT)
 
 # Blog View for user only for their blogs with CRUD Operations
 class BlogView(APIView):
@@ -65,7 +82,22 @@ class BlogView(APIView):
         return Response(blog_serializer.data, status = status.HTTP_200_OK)
 
     def put(self, request):
-        pass 
+        user = self.request.user 
+        if request.data.get('id') is None: 
+            return Response({
+                "message" : "Please Specify Blog ID you want to update"
+            },status = status.HTTP_400_BAD_REQUEST)
+        blog = Blog.objects.filter(id = request.data.get('id'),user__member = user)
+        if len(blog) == 0: 
+            return Response({
+                "message" : "Blog ID not present for update or does not belong to this user"
+            },status = status.HTTP_404_NOT_FOUND)
+        blog_serializer = BlogSerializer(blog[0], data = request.data)
+        if blog_serializer.is_valid():
+            blog_serializer.save()
+            return Response(blog_serializer.data, status = status.HTTP_202_ACCEPTED)
+        return Response(blog_serializer.errors, status = status.HTTP_400_BAD_REQUEST)
+
 
     def post(self, request):
         user = self.request.user
@@ -75,19 +107,125 @@ class BlogView(APIView):
             return Response(blog_serializer.data, status = status.HTTP_201_CREATED)
         return Response(blog_serializer.errors, status = status.HTTP_400_BAD_REQUEST) 
 
-    # def delete(self, request):
-    #     user = self.request.user
-    #     if request.data.get('id') is None: 
-    #         return Response({
-    #             "message" : "Please Specify ID for blog deletion"
-    #         },status = status.HTTP_400_BAD_REQUEST)
-    #     blog = Blog.objects.get(id = request.data.get('id'))
+    def delete(self, request):
+        user = self.request.user
+        if request.data.get('id') is None: 
+            return Response({
+                "message" : "Please Specify ID for blog deletion"
+            },status = status.HTTP_400_BAD_REQUEST)
+        blog = Blog.objects.filter(id = request.data.get('id'),user__member = user)
 
-    #     if blog is None: 
-    #         return Response({
-    #             "message" : "Blog ID not present for deletion"
-    #         })
+        if len(blog) == 0: 
+            return Response({
+                "message" : "Blog ID not present for deletion or not belongs to this user"
+            },status = status.HTTP_404_NOT_FOUND)
+        blog[0].delete()
+        return Response({
+            "message" : "Blog Successfully Deleted"
+        },status = status.HTTP_204_NO_CONTENT)
 
+# CRUD Operations for Like Dislike for a particular post
+class LikeDislikeView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [TokenAuthentication]
+
+    def get(self, request):
+        if request.GET.get('blog') is None: 
+            return Response({
+                "message" : "Please specify blog id for liking diskling remove"
+            },status = status.HTTP_400_BAD_REQUEST)
+        blog = Blog.objects.filter(id = request.GET.get('blog'))
+        if len(blog) == 0: 
+            return Response({
+                "message" : "Blog ID not found!!"
+            },status = status.HTTP_404_NOT_FOUND)    
+ 
+        like_dislike_object = LikeDisklike.objects.filter(blog = request.GET.get('blog'), user__member = self.request.user)
+        if len(like_dislike_object) == 0: 
+            return Response({
+                "message" : "Like Disklike Data not found for given user and blog"
+            },status = status.HTTP_404_NOT_FOUND)
+        likedislike_serializer = LikeDislikeSerializer(like_dislike_object[0])
+        return Response(likedislike_serializer.data, status = status.HTTP_200_OK)
+
+
+    def post(self, request):
+        if request.data.get('blog') is None: 
+            return Response({
+                "message" : "Please Specify Blog ID you want to Like /Dislike"
+            },status = status.HTTP_400_BAD_REQUEST)
+
+        blog = Blog.objects.filter(id = request.data.get('blog'))
+        if len(blog) == 0: 
+            return Response({
+                "message" : "Blog ID not found!!"
+            },status = status.HTTP_404_NOT_FOUND)        
+        request.data.update({"user" : BlogUser.objects.get(member = self.request.user).id})
+        like_dislike_serializer = LikeDislikeSerializer(data = request.data)
+        if like_dislike_serializer.is_valid():
+            like_dislike_serializer.save()
+            return Response(like_dislike_serializer.data, status = status.HTTP_201_CREATED)
+        return Response(like_dislike_serializer.errors, status = status.HTTP_400_BAD_REQUEST)
+    
+    def put(self, request):
+        if request.data.get('blog') is None: 
+            return Response({
+                "message" : "Please specify blog id for liking diskling remove"
+            },status = status.HTTP_400_BAD_REQUEST)
+        blog = Blog.objects.filter(id = request.data.get('blog'))
+        if len(blog) == 0: 
+            return Response({
+                "message" : "Blog ID not found!!"
+            },status = status.HTTP_404_NOT_FOUND)     
+        like_dislike_object = LikeDisklike.objects.filter(blog = request.data.get('blog'), user__member = self.request.user)
+        if len(like_dislike_object) == 0: 
+            return Response({
+                "message" : "Like Disklike Data not found for given user and blog"
+            },status = status.HTTP_404_NOT_FOUND)
+        like_dislike_serializer = LikeDislikeSerializer(like_dislike_object[0],data = request.data)
+        if like_dislike_serializer.is_valid():
+            like_dislike_serializer.save()
+            return Response(like_dislike_serializer.data,status = status.HTTP_202_ACCEPTED)
+        return Response(like_dislike_serializer.errors, status = status.HTTP_400_BAD_REQUEST)     
+    
+        
+    
+    def delete(self, request):
+        if request.data.get('blog') is None: 
+            return Response({
+                "message" : "Please specify blog id for liking diskling remove"
+            },status = status.HTTP_400_BAD_REQUEST)
+        blog = Blog.objects.filter(id = request.data.get('blog'))
+        if len(blog) == 0: 
+            return Response({
+                "message" : "Blog ID not found!!"
+            },status = status.HTTP_404_NOT_FOUND)     
+        like_dislike_object = LikeDisklike.objects.filter(blog = blog, user__member = self.request.user)
+        if len(like_dislike_object) == 0: 
+            return Response({
+                "message" : "Like Disklike Data not found for given user and blog"
+            },status = status.HTTP_404_NOT_FOUND)
+        like_dislike_object[0].delete()
+        return Response({
+            "message" : "Like / Dislike Successfully Removed"
+        },status = status.HTTP_204_NO_CONTENT)
+    
+
+class CommentView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [TokenAuthentication]
+
+    def get(self, request):
+        pass 
+
+    def put(self, request):
+        pass 
+    
+    def post(self, request):
+        pass 
+    
+    def delete(self, request):
+        pass 
 
 # User List View with all relevant filters (to be fixed, showing all user details)
 class BlogUserListView(ListAPIView):
@@ -104,5 +242,5 @@ class BlogListView(ListAPIView):
     search_fields = ['topic','user__name']
 
 ## Todo 
-# 1. Put , delete, method for updating or deleting user
-# 2. Blog User List view should only show names and nothing else
+# 1. Blog User List view should only show names and nothing else
+

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import BlogUser, User,Blog
+from .models import BlogUser, User,Blog,LikeDisklike,Comment
 
 class BlogUserSerializer(serializers.ModelSerializer):
     class Meta: 
@@ -16,9 +16,35 @@ class UserSerializer(serializers.ModelSerializer):
 
 class BlogSerializer(serializers.ModelSerializer):
     user = BlogUserSerializer(read_only = True)
+    likes = serializers.SerializerMethodField()
+    dislikes = serializers.SerializerMethodField()
+
+
+    def get_likes(self, data):
+        return LikeDisklike.objects.filter(blog = data, like = True).count()
+    
+    def get_dislikes(self, data):
+        return LikeDisklike.objects.filter(blog = data, dislike = True).count() 
+    
     class Meta: 
         model = Blog
         fields = '__all__'
 
-# class Comment(serializers.ModelSerializer):
+class LikeDislikeSerializer(serializers.ModelSerializer):
+   
+    class Meta: 
+        model = LikeDisklike
+        fields = ['like','dislike','blog']
+        extra_kwargs = {'like': {'required': True},'dislike' : {'required' : True}} 
 
+    def validate(self, data):
+        if data.get('like') is not None and data.get('dislike') is not None and data.get('like') == data.get('dislike'):
+            raise serializers.ValidationError("Like and Disklike both can't be equal")
+        return super().validate(data)
+    
+class CommentSerializer(serializers.ModelSerializer):
+    user = BlogUserSerializer(read_only = True)
+    class Meta: 
+        model = Comment
+        fields = '__all__'
+    

@@ -30,21 +30,19 @@ class BlogUser(models.Model):
 # In Future, Add Images Upload Section
 class Blog(models.Model):
     user = models.ForeignKey(BlogUser, on_delete=models.CASCADE, blank = False, null = False)
-    topic = models.CharField(null = False, blank = False, max_length = 50,default = "asas")
+    topic = models.CharField(null = False, blank = False, max_length = 50)
     timeofcreation = models.DateTimeField(auto_now_add=True)
     content = models.TextField(null = True, blank = True, max_length=5000)
-    likes = models.IntegerField(default=0, null = False, blank = False)
-    dislikes = models.IntegerField(default = 0, null = False, blank = False)
 
 class Comment(models.Model):
     blog = models.ForeignKey(Blog, on_delete=models.CASCADE, blank = False, null = False)
-    user = models.ForeignKey(BlogUser, on_delete=models.CASCADE, blank = False, null = False)
+    user = models.OneToOneField(BlogUser, on_delete=models.CASCADE, blank = False, null = False)
     timeofcreation = models.DateTimeField(auto_now_add=True)
     text = models.TextField(null = False, blank = False, max_length = 1000)
 
 class LikeDisklike(models.Model):
     blog = models.ForeignKey(Blog, on_delete=models.CASCADE, null = False, blank = False)
-    user = models.ForeignKey(BlogUser, on_delete=models.CASCADE, null = False, blank = False)
+    user = models.OneToOneField(BlogUser, on_delete=models.CASCADE, null = False, blank = False)
     like = models.BooleanField(default= False, null = False, blank = False)
     dislike = models.BooleanField(default=False, null = False, blank = False)
 

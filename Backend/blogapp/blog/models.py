@@ -16,7 +16,6 @@ class BlogUser(models.Model):
     )
 
     name = models.CharField(null = False, blank = False, max_length=100)
-    email = models.EmailField(null = False, blank = False, unique=True)
     phoneno = models.CharField(null = False, blank = False, max_length = 12)
     address = models.CharField(null = True, blank = True, max_length = 500)
     profession = models.CharField(null = True, blank = True, max_length=100)

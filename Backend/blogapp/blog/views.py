@@ -30,6 +30,11 @@ class BlogUserRegistrationView(APIView):
         password = request.data['password']
         password = make_password(password=password)
         request.data.update({'is_member' : True})
+        if request.data.get('email') is None: 
+            return Response({
+                'message' : "email is missing"
+            },status = status.HTTP_400_BAD_REQUEST)
+        request.data.update({'username' : request.data.get('email')})
         if user_serializer.is_valid():
             bloguser_serializer = BlogUserSerializer(data = request.data)
             if bloguser_serializer.is_valid():

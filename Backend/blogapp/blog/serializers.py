@@ -4,14 +4,15 @@ from .models import BlogUser, User,Blog,LikeDisklike,Comment
 class BlogUserSerializer(serializers.ModelSerializer):
     class Meta: 
         model = BlogUser
-        fields = ['name','email','phoneno','address','profession','dob','gender']
+        fields = ['name','phoneno','address','profession','dob','gender']
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta: 
         model = User 
         fields = ['username','email','is_member']
         extra_kwargs = {
-            'password' : {'write_only' : True}
+            'password' : {'write_only' : True},
+            'email' : {'required' : True}
         }
 
 class BlogSerializer(serializers.ModelSerializer):
